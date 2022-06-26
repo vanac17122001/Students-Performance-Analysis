@@ -1,0 +1,358 @@
+---
+title: "CuoiKyR"
+author: "Nhom3"
+date: "11/9/2021"
+output:
+  html_document:
+    df_print: paged
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+
+
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(tidyverse)
+library(parsnip)
+```
+
+## R Markdown
+
+**Đọc dữ liệu từ file csv**
+
+```{r}
+Students <- read.csv("D:/R/StudentsPerformance.csv", stringsAsFactors = T)
+```
+
+**Kiểm tra dữ liệu**
+
+```{r}
+sapply(Students,function(x)sum(is.na(x)))
+```
+
+**Đổi tên các cột**
+
+```{r}
+Students <- Students %>% 
+  rename(race = race.ethnicity, 
+         parent.ed = parental.level.of.education,
+         test.prep = test.preparation.course, 
+         m.score = math.score,
+         r.score = reading.score, 
+         w.score = writing.score)
+colnames(Students)
+```
+
+**Thêm cột điểm trung bình vào tập dữ liệu**
+
+```{r}
+Students <- Students %>%
+  mutate(Avg.score = (r.score+m.score+w.score)/3)
+head(Students, n=10)
+```
+
+**##Biểu đồ thể hiện số lượng học sinh hoàn thành khóa luyện thi**
+
+```{r}
+Students %>%
+  group_by(test.prep)%>%
+  summarise(n=n())%>%
+  ggplot(aes(test.prep,n,fill=test.prep))+geom_bar(stat = "identity") + 
+  geom_text(aes(label = n), vjust = -0.25)+ 
+  scale_fill_manual(values = c("completed"="lightpink","none"="lightblue"))+ 
+  labs(x="Test preparation course", y="Count")
+```
+
+\*\*Nhận xét: có khoảng 2/3 học sinh không thực hiện khóa luyện thi
+
+**##Biểu đồ thể hiện số lượng học sinh hoàn thành khóa luyện thi theo dân tộc**
+
+```{r}
+Students %>%
+  group_by(race,test.prep)%>%
+  summarise(n = n())%>%
+  ggplot(aes(race,n,fill=test.prep))+
+  geom_col(position = 'dodge')+
+  geom_text(aes(label = n), vjust = -0.25,position = position_dodge(.9))+ 
+  scale_fill_manual(values = c("completed"="lightpink","none"="lightblue"))+
+  labs(x="Race", y="Count")
+```
+
+\*\*Nhận xét: - Ở group A có khoảng 35% học sinh hoàn thành khóa luyện thi.
+- Ở group B có khoảng 36% học sinh hoàn thành khóa luyện thi.
+- Ở group C có khoảng 37% học sinh hoàn thành khóa luyện thi.
+- Ở group D có khoảng 31% học sinh hoàn thành khóa luyện thi.
+- Ở group E có khoảng 42% học sinh hoàn thành khóa luyện thi.
+Kết luận: Theo biểu đồ trên ta có thể thấy số lượng học sinh hoàn thành khóa luyện thi ở group C là nhiều nhất và group A có số lượng hoàn thành khóa luyện thi ít nhất.
+Tỉ lệ học sinh hoàn thành khóa luyện thi ở group E là cao nhất còn ở group D là thấp nhất.
+##Biểu đồ phân bố điểm trung bình của học sinh khi hoàn thành và không hoàn thành khóa luyện thi
+
+```{r}
+Students %>%
+  ggplot(aes(Avg.score,test.prep,fill=test.prep))+geom_boxplot()+
+  scale_fill_manual(values = c("completed"="lightpink","none"="lightblue"))+
+  scale_x_continuous(breaks = seq(0,100, by=10))
+```
+
+\*\*Nhận xét: Từ biểu đồ trên cho ta biết - Khi không hoàn thành khóa luyện thi thì: + Điểm thấp nhất( trừ các outliner) là 28, cao nhất là 100.
++ Ít nhất 75% học sinh đạt được 55 điểm trở lên.
++ ít nhất một nửa số học sinh đạt được 65 điểm trở lên.
+- Khi hoàn thành khóa luyện thi thì: + Điểm thấp nhất( trừ các outliner) là 39, cao nhất là 100.
++ Ít nhất 75% học sinh đạt được 65 điểm trở lên.
++ ít nhất một nửa số học sinh đạt được 73 điểm trở lên.
+Kết luận: Dựa theo số liệu từ biểu đồ trên ta có thể thấy khi hoàn thành khóa luyện thi thì điểm số có cao hơn so với khi không hoàn thành khóa luyện thi( cụ thể thì ít nhất 75% học sinh hoàn thành khóa luyện thi tăng được khoảng 18,18% so với khi không hoàn thành và một nửa số học sinh hoàn thành tăng khoảng 12,31% so với khi không hoàn thành).
+
+```{r}
+Students %>%
+  ggplot(aes(Avg.score,test.prep,fill=lunch))+geom_boxplot()+
+  scale_fill_manual(values = c("standard"="lightpink","free/reduced"="lightblue"))+
+  scale_x_continuous(breaks = seq(0,100, by=10))
+
+
+tapply(Students$Avg.score, list(Students$test.prep, Students$lunch), mean)
+```
+
+\*Nhận xét: khi lunch là standard và test preparation course là completed thì điểm trung bình cao hơn so với phần còn lại.
+
+```{r}
+Students %>%
+  ggplot(aes(Avg.score,race,fill=test.prep))+geom_boxplot()+
+  scale_fill_manual(values = c("#5E5AF3", "#F33E43"))+
+  scale_x_continuous(breaks = seq(0,100, by=10))
+
+tapply(Students$Avg.score, list(Students$test.prep, Students$race), mean)
+```
+
+\*Nhận xét: điểm trung bình của học sinh group E khi test preparation course là completed là cao nhất bằng 76,7.
+Thấp nhất là học sinh group A khi test preparation course là none với điểm trung bình là 59,2
+
+```{r}
+Students %>%
+  ggplot(aes(Avg.score,race,fill=lunch))+geom_boxplot()+
+  scale_fill_manual(values = c("lightpink", "lightblue"))+
+  scale_x_continuous(breaks = seq(0,100, by=10))
+
+tapply(Students$Avg.score, list(Students$lunch, Students$race), mean)
+```
+
+\*Nhận xét: điểm trung bình của học sinh group E khi lunch là standard là cao nhất với 74,9.
+Thấp nhất là học sinh group A khi lunch là free/reduced với điểm trung bình là 57,7.
+
+```{r}
+Students %>%
+  ggplot(aes(Avg.score,parent.ed,fill=test.prep))+geom_boxplot()+
+  scale_fill_manual(values = c("lightpink", "lightblue"))+
+  scale_x_continuous(breaks = seq(0,100, by=10))
+
+
+tapply(Students$Avg.score, list(Students$test.prep, Students$parent.ed), mean)
+```
+
+\*Nhận xét: học sinh có parental level of education là associate's degree và test.prep là completed có điểm trung bình cao nhất bằng 74,9.
+Thấp nhất là học sinh parental level of education là high school và test.prep là none với điểm trung bình là 61,6.
+
+```{r}
+Students %>%
+  ggplot(aes(Avg.score,gender,fill=test.prep))+geom_boxplot()+
+  scale_fill_manual(values = c("#5E5AF3", "#F33E43"))+
+  scale_x_continuous(breaks = seq(0,100, by=10))
+
+
+tapply(Students$Avg.score, list(Students$test.prep, Students$gender), mean)
+```
+
+\*Nhận xét: điểm trung bình của female với test.prep là complete là cao nhất bằng 74,5.
+Thấp nhất là male với test.prep là none điểm trung bình bằng 63.
+
+```{r}
+#Mô hình linear
+#Chia train, test
+N<-nrow(Students)
+target <-round(N*0.8)
+# Tạo ra ngẫu nhiên 100 giá trị của phân phối đều (có giá trị từ 0->1)
+st<-runif(N)
+
+Student_train <- Students[st < .80, ]
+Student_test <- Students[st >= .80, ]
+#Het chia train, test
+
+#Chia tap train thanh nhieu phan
+N<-nrow(Student_train)
+target <-round(N*0.8)
+# Tạo ra ngẫu nhiên 100 giá trị của phân phối đều (có giá trị từ 0->1)
+st<-runif(N)
+
+Student_train1 <- Student_train[st < .80,]
+Student_train2 <- Student_train[st >= .80,]
+
+nrow(Student_train)
+nrow(Student_test)
+nrow(Student_train1)
+nrow(Student_train2)
+
+
+model <- lm(formula = Avg.score ~. - m.score - r.score - w.score, data = Student_train1)
+model1 <- update(model, .~. - parent.ed)
+model2 <- update(model, .~. - race)
+model3 <- update(model, .~. - parent.ed - race)
+
+summary(model)
+summary(model1)
+summary(model2)
+summary(model3)
+
+```
+
+## Tính và so sánh RMSE giữa các model
+```{r}
+Student_train2$pred <- predict(model, Student_train2)
+# Tính RMSE
+Student_train2 %>% 
+  mutate(Residual = pred - Avg.score) %>% #Calculating the residual
+  summarise(rmse = sqrt(mean(Residual^2)))
+```
+
+```{r}
+Student_train2$pred <- predict(model1, Student_train2)
+# Tính RMSE
+Student_train2 %>% 
+  mutate(Residual = pred - Avg.score) %>% #Calculating the residual
+  summarise(rmse = sqrt(mean(Residual^2)))
+```
+
+```{r}
+Student_train2$pred <- predict(model2, Student_train2)
+# Tính RMSE
+Student_train2 %>% 
+  mutate(Residual = pred - Avg.score) %>% #Calculating the residual
+  summarise(rmse = sqrt(mean(Residual^2)))
+```
+
+```{r}
+Student_train2$pred <- predict(model3, Student_train2)
+# Tính RMSE
+Student_train2 %>% 
+  mutate(Residual = pred - Avg.score) %>% #Calculating the residual
+  summarise(rmse = sqrt(mean(Residual^2)))
+```
+
+```{r}
+ggplot(Student_train2, aes(pred, Avg.score)) + geom_point() +
+  scale_x_continuous(breaks = seq(0,100, by=5))+
+  scale_y_continuous(breaks = seq(0,100, by=10))+
+  geom_abline() + 
+  labs(title = "Linear regression mean.score dự đoán với mean.score thực tế",y="Thực tế", x="Dự đoán")
+```
+
+
+```{r}
+model <- lm(formula = Avg.score ~. - m.score - r.score - w.score, data = Student_train)
+
+summary(model)
+```
+
+```{r}
+Student_test$pred <- predict(model, Student_test)
+# Tính RMSE
+Student_test %>% 
+  mutate(Residual = pred - Avg.score) %>% #Calculating the residual
+  summarise(rmse = sqrt(mean(Residual^2)))
+```
+
+```{r}
+ggplot(Student_test, aes(pred, Avg.score)) + geom_point() +
+  scale_x_continuous(breaks = seq(0,100, by=5))+
+  scale_y_continuous(breaks = seq(0,100, by=10))+
+  geom_abline() + 
+  labs(title = "Linear regression mean.score dự đoán với mean.score thực tế",y="Thực tế", x="Dự đoán")
+```
+
+**Chia tập dữ liệu**
+
+```{r}
+
+set.seed(1)
+index <- createDataPartition(Students$test.prep, p = 0.8, list = F)
+train <- Students[index,]
+test <- Students[-index,]
+```
+
+```{r}
+head(train)
+```
+
+**Cross Validation**
+
+```{r}
+set.seed(1)
+ctrl <- trainControl(method = "cv", number = 10)
+knn_c <- train(form=Avg.score~gender+race+parent.ed+lunch+test.prep, data = train, method = "knn",
+               trControl = ctrl,tuneLength = 20, preProcess = c("center", "scale"))
+plot(knn_c)
+knn_c
+```
+
+```{r}
+# Tiến hành dự đoán mean.score theo các biến phân loại
+knnPredict <- predict(knn_c,newdata = test )
+knnPredict
+```
+
+```{r}
+# Thêm cột predKnn vào tập test
+test$predKnn <- knnPredict
+# Tính RMSE
+test %>% 
+  mutate(Residual = predKnn - Avg.score) %>% #Calculating the residual
+  summarise(rmse = sqrt(mean(Residual^2)))
+```
+
+```{r}
+# Xem tập test
+test
+```
+
+```{r}
+ggplot(test, aes(predKnn, Avg.score)) + geom_point() + geom_abline() + 
+  labs(title = "KNN-mean.score dự đoán với mean.score thực tế",y="Thực tế", x="Dự đoán")
+```
+
+**Bootstrap**
+
+**Xây dựng mô hình**
+
+```{r}
+#Thay đổi method thành boot
+set.seed(1)
+ctrl <- trainControl(method = "boot", number = 100)
+knn_b <- train(form=Avg.score~gender+race+parent.ed+lunch+test.prep, data = train, method = "knn",
+               trControl = ctrl,tuneLength = 20, preProcess = c("center", "scale"))
+```
+
+**Dự đoán**
+
+```{r}
+#Dự đoán
+knnPredict_b <- predict(knn_b,newdata = test )
+# Tiến hành dự đoán mean.score theo các biến phân loại
+test$predKnn_b <- knnPredict_b
+```
+
+**Tính rmse**
+
+```{r}
+test %>% 
+  mutate(Residual = predKnn_b - Avg.score) %>% 
+  summarise(rmse = sqrt(mean(Residual^2)))
+meanscore<-test$Avg.score
+preKnn_b<-test$predKnn_b
+rss <- sum((preKnn_b - meanscore) ^ 2)  
+tss <- sum((meanscore - mean(meanscore)) ^ 2) 
+rsq <- 1 - rss/tss
+rsq
+```
